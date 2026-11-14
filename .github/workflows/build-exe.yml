@@ -1,0 +1,42 @@
+name: Build MesuresApp.exe
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # Python 3.8 = derniere version qui tourne sous Windows 7
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+          architecture: x64
+
+      - name: Installer PyInstaller
+        run: python -m pip install -r requirements-build.txt
+
+      - name: Tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Construire l'exe
+        run: pyinstaller --noconfirm --onefile --windowed --name MesuresApp mesures_app.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MesuresApp-windows
+          path: dist/MesuresApp.exe
+
+      - name: Publier une Release (tags v*)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/MesuresApp.exe
