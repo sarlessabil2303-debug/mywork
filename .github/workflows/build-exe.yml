@@ -11,14 +11,14 @@ permissions:
 
 jobs:
   build:
-    # Python 3.8 = derniere version qui tourne sous Windows 7
+    # Python 3.7 : tourne sous Windows 7 sans le correctif KB2533623 (requis des Python 3.8)
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.7"
           architecture: x64
 
       - name: Installer PyInstaller
