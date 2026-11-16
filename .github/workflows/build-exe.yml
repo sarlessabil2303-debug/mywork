@@ -30,6 +30,16 @@ jobs:
       - name: Construire l'exe
         run: pyinstaller --noconfirm --onefile --windowed --name MesuresApp mesures_app.py
 
+      - name: Test de l'exe (mode sans fenetre, dossier vide)
+        shell: pwsh
+        run: |
+          $d = Join-Path $env:RUNNER_TEMP "smoke"
+          New-Item -ItemType Directory -Force $d | Out-Null
+          $p = Start-Process -FilePath "dist\MesuresApp.exe" -ArgumentList @("--auto","--type","voiture","--folder",$d,"--no-pdf","--no-move") -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Code de sortie $($p.ExitCode)" }
+          if (-not (Test-Path "dist\mesures_log.txt")) { throw "Journal absent : l'exe ne s'est pas execute correctement" }
+          Get-Content "dist\mesures_log.txt"
+
       - uses: actions/upload-artifact@v4
         with:
           name: MesuresApp-windows
