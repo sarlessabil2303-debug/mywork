@@ -1,31 +1,35 @@
-# MesuresApp
+# MesuresApp 2.0
 
-Remplace `bg_fixed.bat` + les scripts PowerShell (`process_files.ps1`, `update_report.ps1`,
-`update_report_go_O.ps1`) par une application Windows avec interface graphique.
+Un seul programme (Windows 7 compatible) pour les trois types de controle :
 
-Ce que fait le traitement (identique au .bat) :
+| Type | Remplace | Modele HTML | Rapport |
+|---|---|---|---|
+| Voiture essence / gazole | `bg_fixed.bat` + `process_files.ps1` + `update_report*.ps1` | `es7_essence test_merged.html` / `go1.html` | `rapport_a_imprimer.html/.pdf` |
+| Bus | `trucks.bat` + `trucks_process.ps1` (bus) | `bus_go.html` | `rapport_a_imprimer.html/.pdf` |
+| Camion lourd | `trucks.bat` + `trucks_process.ps1` (camion) | `camion_lourd.html` | `rapport_camion.html/.pdf` |
 
-1. date/heure de l'ordinateur -> `ddMMyyyyHHmmss`, calcul du CRC ;
-2. mise a jour de la date (`[MESURES]`) et du CRC (`[CRC]`) dans les fichiers `.F .O .G .R .S` ;
-3. mode **GAZOLE** si un `.O` existe sans `.G`, sinon **ESSENCE** ;
-4. remplissage du modele HTML (`es7_essence test_merged.html` ou `go1.html`) -> `rapport_a_imprimer.html` ;
-5. conversion en PDF avec Google Chrome (headless), puis impression (SumatraPDF si present, sinon lecteur PDF par defaut), 2 exemplaires ;
-6. deplacement des fichiers de mesures vers `C:\GIEGLAN\res`.
+Deroulement (identique aux anciens scripts) : controles -> date/heure + CRC dans les fichiers de mesures ->
+rapport HTML -> PDF (Google Chrome headless) -> impression (SumatraPDF, sinon lecteur PDF) -> deplacement
+des fichiers vers `C:\GIEGLAN\res`. Les controles sont faits **avant** de modifier quoi que ce soit.
 
 ## Utilisation
 
-* Double-clic sur `MesuresApp.exe` : fenetre avec dossier, options et journal.
-* Sans fenetre, comme l'ancien .bat : `MesuresApp.exe --auto` (dans le dossier des mesures, ou `--folder X`).
-  Options : `--no-print`, `--no-pdf`, `--no-move`, `--mode essence|gazole`. Journal : `mesures_log.txt` a cote de l'exe.
+* Double-clic sur `MesuresApp.exe` : choisir le dossier et le type de vehicule, puis "Lancer le traitement".
+* Sans fenetre, comme les anciens .bat : `MesuresApp.exe --auto --type voiture|bus|camion`
+  (dans le dossier des mesures, ou `--folder X`). Options : `--mode essence|gazole`, `--no-print`, `--no-pdf`, `--no-move`.
+  Code de sortie 0 = succes, 1 = erreur.
+* Journal : `mesures_log.txt` a cote de l'exe. Reglages : `mesures_config.json`.
+* Les modeles HTML sont cherches dans le dossier des mesures, puis a cote de l'exe. Ils ne sont **pas** dans ce depot.
 
-Les modeles HTML (`es7_essence test_merged.html`, `go1.html`) doivent se trouver dans le dossier des mesures
-ou a cote de l'exe. Ils ne sont **pas** inclus dans ce depot.
+## CRC
+
+Voiture/bus utilisaient `poids 1,2,3,4,5,1,2,...` et camion `poids 1,2,3,...,14`. Le programme **verifie** le calcul
+sur les champs date deja presents dans les fichiers avant de les modifier, et n'utilise le calcul d'origine du type
+que si les fichiers ne permettent pas de trancher (le journal indique le choix).
 
 ## Obtenir l'exe
 
-Le fichier `.github/workflows/build-exe.yml` construit l'exe sur GitHub (Python 3.8 + PyInstaller 5.13, compatible Windows 7).
+`.github/workflows/build-exe.yml` construit l'exe (Python 3.7 + PyInstaller 5.13) :
+onglet **Actions** -> dernier run -> **Artifacts**, ou nouvelle **Release** avec un tag `v2.0`.
 
-* Onglet **Actions** -> dernier run -> **Artifacts** -> `MesuresApp-windows`, ou
-* creer un tag (`git tag v1.0 && git push origin v1.0`) -> l'exe apparait dans **Releases**.
-
-Windows 7 : SP1 requis, avec la mise a jour "Universal C Runtime" (KB2999226) si une DLL `api-ms-win-crt-*` manque.
+Windows 7 : SP1 recommande, avec "Universal C Runtime" (KB2999226) si une DLL `api-ms-win-crt-*` manque.
