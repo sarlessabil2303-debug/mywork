@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from mesures import bus, car, common, truck  # noqa: E402
+from mesures import bus, car, common, truck, vehicle_check  # noqa: E402
 from mesures.job import guess_family, run_job  # noqa: E402
 from mesures.options import JobOptions  # noqa: E402
 
@@ -109,7 +109,8 @@ class CarTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as dest:
             write(os.path.join(d, "tpl.html"), '<html><head></head><body><div id="pf2"></div></body></html>')
             measure_file(os.path.join(d, "5.F"), {"0427": "0"}, {"0468": "0"})
-            opt = JobOptions(folder=d, dest=dest, make_pdf=False, do_print=False, tpl_essence="tpl.html", app_dir=d)
+            opt = JobOptions(folder=d, dest=dest, make_pdf=False, do_print=False, tpl_essence="tpl.html", app_dir=d,
+                             check_cg=False)
             self.assertTrue(run_job(opt, lambda m: None))
             self.assertTrue(os.path.isfile(os.path.join(d, "rapport_a_imprimer.html")))
             self.assertTrue(os.path.isfile(os.path.join(dest, "5.F")))
@@ -197,12 +198,98 @@ class BusTruckTests(unittest.TestCase):
             make_truck_like(d, "777", "linear")
             write(os.path.join(d, "tpl.html"), tpl)
             opt = JobOptions(folder=d, vehicle="camion", dest=dest, make_pdf=False, do_print=False,
-                             tpl_camion="tpl.html", app_dir=d)
+                             tpl_camion="tpl.html", app_dir=d, check_cg=False)
             msgs = []
             # la zone de texte du modele est absente -> erreur propre, fichiers deja mis a jour
             self.assertFalse(run_job(opt, msgs.append))
             self.assertTrue(any("absente ou ambigue" in m for m in msgs))
             self.assertTrue(os.path.isfile(os.path.join(d, "777.F")))      # rien deplace
+
+
+class VehicleCheckTests(unittest.TestCase):
+    def _setup(self, plate, cg_names, extra_measure=()):
+        d, cg = tempfile.mkdtemp(), tempfile.mkdtemp()
+        measure_file(os.path.join(d, plate + ".F"), {"0427": "0"})
+        for ext in extra_measure:
+            measure_file(os.path.join(d, plate + "." + ext), {"0403": "0"})
+        for n in cg_names:
+            write(os.path.join(cg, n), "x" * 49)
+        return d, cg
+
+    def test_found(self):
+        d, cg = self._setup("0217211640", ["0217211640.cg", "0228519712.cg"])
+        self.assertEqual(vehicle_check.check_vehicle(d, cg, lambda m: None), "0217211640")
+
+    def test_registered_later_is_detected(self):
+        d, cg = self._setup("0217211640", [])
+        with self.assertRaises(vehicle_check.VehicleNotRegistered) as ctx:
+            vehicle_check.check_vehicle(d, cg, lambda m: None)
+        self.assertIn("doit d'abord etre enregistre", str(ctx.exception))
+        write(os.path.join(cg, "0217211640.cg"), "x" * 49)           # ajoute apres coup
+        self.assertEqual(vehicle_check.check_vehicle(d, cg, lambda m: None), "0217211640")
+
+    def test_missing_with_close_numbers(self):
+        d, cg = self._setup("0228519740", ["0228519712.cg", "1954811240.cg"])
+        with self.assertRaises(common.JobError) as ctx:
+            vehicle_check.check_vehicle(d, cg, lambda m: None)
+        self.assertIn("0228519712.cg", str(ctx.exception))
+        self.assertIn("Erreur de numerotation", str(ctx.exception))
+
+    def test_leading_zeros_difference(self):
+        d, cg = self._setup("0029519140", ["29519140.cg"])
+        with self.assertRaises(common.JobError) as ctx:
+            vehicle_check.check_vehicle(d, cg, lambda m: None)
+        self.assertIn("29519140.cg", str(ctx.exception))
+
+    def test_missing_without_hint(self):
+        d, cg = self._setup("0000000001", ["9999999999.cg"])
+        with self.assertRaises(common.JobError) as ctx:
+            vehicle_check.check_vehicle(d, cg, lambda m: None)
+        self.assertIn("doit d'abord etre enregistre", str(ctx.exception))
+        self.assertNotIn("proches", str(ctx.exception))
+
+    def test_measure_files_with_different_numbers(self):
+        d, cg = self._setup("0217211640", ["0217211640.cg"])
+        measure_file(os.path.join(d, "0217211641.G"), {"0513": "0"})
+        with self.assertRaises(common.JobError) as ctx:
+            vehicle_check.check_vehicle(d, cg, lambda m: None)
+        self.assertIn("0217211641.G", str(ctx.exception))
+
+    def test_cg_folder_missing(self):
+        d, _ = self._setup("0217211640", [])
+        with self.assertRaises(common.JobError):
+            vehicle_check.check_vehicle(d, os.path.join(d, "nope"), lambda m: None)
+
+    def test_case_insensitive_and_distance(self):
+        d, cg = self._setup("0217211640", ["0217211640.CG"])
+        self.assertEqual(vehicle_check.check_vehicle(d, cg, lambda m: None), "0217211640")
+        self.assertEqual(vehicle_check.distance("0228519712", "0228519740"), 2)
+
+    def test_run_job_stops_before_modifying(self):
+        d, cg = self._setup("0228519740", ["0228519712.cg"])
+        before = read(os.path.join(d, "0228519740.F"))
+        msgs = []
+        opt = JobOptions(folder=d, dest=tempfile.mkdtemp(), cg_dir=cg, make_pdf=False, do_print=False, app_dir=d)
+        self.assertFalse(run_job(opt, msgs.append))
+        self.assertEqual(read(os.path.join(d, "0228519740.F")), before)
+        self.assertTrue(any("doit d'abord etre enregistre" in m for m in msgs))
+
+    def test_renamed_plate_is_checked_and_rename_undone_on_failure(self):
+        d, cg = self._setup("0228519740", ["0228519712.cg"])
+        opt = JobOptions(folder=d, dest=tempfile.mkdtemp(), cg_dir=cg, plate="0228519741",
+                         make_pdf=False, do_print=False, app_dir=d)
+        msgs = []
+        self.assertFalse(run_job(opt, msgs.append))
+        self.assertTrue(os.path.isfile(os.path.join(d, "0228519740.F")))     # ancien nom restaure
+        self.assertFalse(os.path.exists(os.path.join(d, "0228519741.F")))
+
+    def test_renamed_plate_found_in_cg(self):
+        d, cg = self._setup("0228519740", ["0228519712.cg"])
+        write(os.path.join(d, "tpl.html"), '<html><head></head><body><div id="pf2"></div></body></html>')
+        opt = JobOptions(folder=d, dest=tempfile.mkdtemp(), cg_dir=cg, plate="0228519712", move_files=False,
+                         make_pdf=False, do_print=False, tpl_essence="tpl.html", app_dir=d)
+        self.assertTrue(run_job(opt, lambda m: None))
+        self.assertTrue(os.path.isfile(os.path.join(d, "0228519712.F")))
 
 
 if __name__ == "__main__":

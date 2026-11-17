@@ -21,6 +21,18 @@ des fichiers vers `C:\GIEGLAN\res`. Les controles sont faits **avant** de modifi
 * Journal : `mesures_log.txt` a cote de l'exe. Reglages : `mesures_config.json`.
 * Les modeles HTML sont cherches dans le dossier des mesures, puis a cote de l'exe. Ils ne sont **pas** dans ce depot.
 
+## Controle du vehicule (avant toute modification)
+
+Le numero (matricule) est le nom des fichiers `.F/.O/.G/.R/.S`. Avant de modifier ou d'imprimer quoi que ce soit :
+
+1. tous les fichiers de mesures du dossier doivent porter le meme numero que le `.F` le plus recent ;
+2. un fichier `<numero>.cg` doit exister dans `C:\GIEGLAN\cg` (vehicule ajoute depuis l'ordinateur externe).
+
+Sinon le traitement s'arrete avec le message « le vehicule doit d'abord etre enregistre » (numeros proches proposes : un chiffre faux, zeros en trop ou en moins).
+Les numeros peuvent etre ajoutes a tout moment : le dossier cg est relu a chaque essai, et la fenetre propose **Reessayer** apres l'enregistrement.
+Si le matricule a ete corrige par renommage, le controle porte sur le nouveau numero, et l'ancien nom est restaure en cas de refus.
+Desactivable dans "Reglages" ou avec `--no-check`.
+
 ## CRC
 
 Voiture/bus utilisaient `poids 1,2,3,4,5,1,2,...` et camion `poids 1,2,3,...,14`. Le programme **verifie** le calcul

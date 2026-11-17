@@ -10,9 +10,10 @@ from datetime import datetime
 from typing import Dict
 
 from . import __version__, car
-from .common import FileLog, find_files, resolve_template
+from .common import FileLog, JobError, find_files, resolve_template
 from .config import app_dir, defaults, load_config, options_from_config, save_config
 from .job import guess_family, run_job
+from .vehicle_check import VehicleNotRegistered, check_vehicle
 from .options import VEHICLE_BUS, VEHICLE_CAMION, VEHICLE_LABELS, VEHICLE_VOITURE
 
 APP_TITLE = "Mesures - controle technique"
@@ -57,6 +58,7 @@ def run_gui() -> int:
             self.v_pdf, self.v_print, self.v_move = B(value=bool(cfg["make_pdf"])), B(value=bool(cfg["do_print"])), \
                 B(value=bool(cfg["move_files"]))
             self.v_copies = I(value=int(cfg["copies"]))
+            self.v_check, self.v_cg = B(value=bool(cfg["check_cg"])), S(value=str(cfg["cg_dir"]))
             self.v_conflict = S(value=CONFLICT_LABELS.get(str(cfg["conflict"]), CONFLICT_LABELS["auto"]))
             self.v_tpl = {k: S(value=str(cfg[k])) for k in ("tpl_essence", "tpl_gazole", "tpl_bus", "tpl_camion")}
             self.v_chrome, self.v_sumatra = S(value=str(cfg["chrome"])), S(value=str(cfg["sumatra"]))
@@ -148,6 +150,11 @@ def run_gui() -> int:
                     ttk.Button(root, text="...", width=3, command=lambda v=var: self.pick_exe(v)).grid(
                         row=r, column=2, **pad)
                 r += 1
+            ttk.Checkbutton(root, text="Verifier le vehicule avant traitement (fichier .cg)",
+                            variable=self.v_check).grid(row=r, column=0, sticky="w", **pad)
+            ttk.Entry(root, textvariable=self.v_cg).grid(row=r, column=1, sticky="ew", **pad)
+            ttk.Button(root, text="...", width=3, command=self.pick_cg).grid(row=r, column=2, **pad)
+            r += 1
             ttk.Label(root, text="Fichier deja present dans la destination :").grid(row=r, column=0, sticky="w", **pad)
             ttk.Combobox(root, textvariable=self.v_conflict, state="readonly",
                          values=list(CONFLICT_LABELS.values())).grid(row=r, column=1, sticky="ew", **pad)
@@ -181,6 +188,11 @@ def run_gui() -> int:
             if d:
                 self.v_folder.set(os.path.normpath(d))
 
+        def pick_cg(self) -> None:
+            d = filedialog.askdirectory(initialdir=self.v_cg.get() or os.getcwd(), title="Dossier cg")
+            if d:
+                self.v_cg.set(os.path.normpath(d))
+
         def pick_exe(self, var: "tk.StringVar") -> None:
             p = filedialog.askopenfilename(title="Choisir le programme",
                                            filetypes=[("Programme", "*.exe"), ("Tous", "*.*")])
@@ -193,6 +205,8 @@ def run_gui() -> int:
                 v.set(str(d[k]))
             self.v_chrome.set("")
             self.v_sumatra.set("")
+            self.v_check.set(True)
+            self.v_cg.set(str(d["cg_dir"]))
             self.v_conflict.set(CONFLICT_LABELS["auto"])
             self.v_bus_scale.set(int(d["bus_scale"]))
             self.v_bus_shift.set(float(d["bus_shift"]))
@@ -243,6 +257,8 @@ def run_gui() -> int:
                 "dest": self.v_dest.get().strip() or str(defaults()["dest"]),
                 "make_pdf": self.v_pdf.get(), "do_print": self.v_print.get(), "copies": copies,
                 "move_files": self.v_move.get(),
+                "check_cg": self.v_check.get(),
+                "cg_dir": self.v_cg.get().strip() or str(defaults()["cg_dir"]),
                 "conflict": self._key(CONFLICT_LABELS, self.v_conflict.get(), "auto"),
                 "chrome": self.v_chrome.get().strip(), "sumatra": self.v_sumatra.get().strip(),
                 "bus_scale": num(self.v_bus_scale, 88, int),
@@ -283,6 +299,20 @@ def run_gui() -> int:
             if not os.path.isdir(folder):
                 messagebox.showerror(APP_TITLE, "Le dossier n'existe pas :\n" + folder)
                 return
+            if self.v_check.get():
+                # Le fichier .cg peut etre ajoute a tout moment : on relit le dossier a chaque essai.
+                cg_dir = self.v_cg.get().strip() or str(defaults()["cg_dir"])
+                while True:
+                    try:
+                        check_vehicle(folder, cg_dir, lambda m: None)
+                        break
+                    except VehicleNotRegistered as exc:
+                        if not messagebox.askretrycancel(
+                                APP_TITLE, "%s\n\nEnregistrez le vehicule, puis cliquez sur Reessayer." % exc):
+                            return
+                    except JobError as exc:
+                        messagebox.showerror(APP_TITLE, str(exc))
+                        return
             if self.v_warn.get() and not messagebox.askyesno(APP_TITLE, self.v_warn.get() + "\n\nContinuer quand meme ?"):
                 return
             if not has_measure_files(folder) and not messagebox.askyesno(

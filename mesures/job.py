@@ -8,6 +8,8 @@ import traceback
 from . import bus, car, truck
 from .common import (JobError, Log, Plan, find_chrome, find_sumatra, make_pdf, move_files, newest_file,
                      print_pdf, read_mesures, now_stamp, resolve_template)
+from .plate import rename_plate, undo_rename
+from .vehicle_check import check_vehicle
 from .options import JobOptions, VEHICLE_BUS, VEHICLE_CAMION, VEHICLE_VOITURE
 
 MAKERS = {
@@ -41,7 +43,14 @@ def run_job(opt: JobOptions, log: Log) -> bool:
         if maker is None:
             raise JobError("Type de vehicule inconnu : %r" % opt.vehicle)
         stamp = now_stamp()
-        plan: Plan = maker(opt, folder, stamp, log)       # controles : rien n'est encore modifie
+        renames = rename_plate(folder, opt.plate, log) if opt.plate.strip() else []
+        try:
+            if opt.check_cg:                              # numero coherent + vehicule present dans cg
+                check_vehicle(folder, opt.cg_dir, log)
+            plan: Plan = maker(opt, folder, stamp, log)   # controles : le contenu n'est pas encore modifie
+        except Exception:
+            undo_rename(renames, log)                     # controle refuse : on remet les anciens noms
+            raise
         log("Type : %s" % plan.label)
 
         template = resolve_template(plan.template_name, folder, opt.app_dir)

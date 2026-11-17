@@ -20,11 +20,14 @@ class JobOptions:
     folder: str
     vehicle: str = VEHICLE_VOITURE
     mode: str = "auto"              # voiture seulement : auto | essence | gazole
+    plate: str = ""                 # matricule saisi (vide = garder le nom des fichiers) ; jamais enregistre
     dest: str = r"C:\GIEGLAN\res"
     make_pdf: bool = True
     do_print: bool = True
     copies: int = 2
     move_files: bool = True
+    check_cg: bool = True           # verifier le numero du vehicule (fichier .cg + coherence des fichiers)
+    cg_dir: str = r"C:\GIEGLAN\cg"
     conflict: str = "auto"          # fichier deja present dans res : auto | overwrite | rename
     tpl_essence: str = "es7_essence test_merged.html"
     tpl_gazole: str = "go1.html"
@@ -40,7 +43,7 @@ class JobOptions:
 
 # Cles sauvegardees dans le fichier de configuration (tout sauf folder / app_dir)
 CONFIG_KEYS = (
-    "vehicle", "mode", "dest", "make_pdf", "do_print", "copies", "move_files", "conflict",
+    "vehicle", "mode", "dest", "make_pdf", "do_print", "copies", "move_files", "check_cg", "cg_dir", "conflict",
     "tpl_essence", "tpl_gazole", "tpl_bus", "tpl_camion",
     "bus_scale", "bus_shift", "camion_shift", "chrome", "sumatra",
 )
