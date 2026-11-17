@@ -9,7 +9,7 @@ import re
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Dict, List, Optional
 
-from .common import (Log, Plan, ReportError, find_files, newest_file, read_mesures, read_template,
+from .common import (JobError, Log, Plan, ReportError, find_files, newest_file, read_mesures, read_template,
                      split_stamp, update_files, write_text)
 from .options import JobOptions
 
@@ -512,6 +512,9 @@ def build_report_gazole(folder: str, stamp: str, template: str, out_path: str, l
 # Plan d'execution
 # ---------------------------------------------------------------------------
 def make_plan(opt: JobOptions, folder: str, stamp: str, log: Log) -> Plan:
+    if not find_files(folder, "F"):
+        raise JobError("Aucun fichier de mesures .F dans le dossier :\n%s\n"
+                       "Choisissez le dossier qui contient les fichiers de la voiture." % folder)
     mode = {"essence": MODE_ESSENCE, "gazole": MODE_GAZOLE}.get(opt.mode.lower()) or detect_mode(folder)
     if mode == MODE_GAZOLE:
         name, builder, exts = opt.tpl_gazole, build_report_gazole, ("F", "G", "R", "S", "O")

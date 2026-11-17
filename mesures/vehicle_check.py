@@ -48,8 +48,8 @@ def check_vehicle(folder: str, cg_dir: str, log: Log) -> Optional[str]:
     """Leve JobError si le numero est incoherent ou absent du dossier cg. Renvoie le numero controle."""
     f_path = newest_file(folder, "F")
     if not f_path:
-        log("ATTENTION : aucun fichier .F, numero du vehicule non controle.")
-        return None
+        raise JobError("Aucun fichier de mesures .F dans le dossier :\n%s\n"
+                       "Choisissez le dossier qui contient les fichiers du vehicule." % folder)
     plate = _stem(f_path)
 
     others = []

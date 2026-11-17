@@ -21,6 +21,13 @@ des fichiers vers `C:\GIEGLAN\res`. Les controles sont faits **avant** de modifi
 * Journal : `mesures_log.txt` a cote de l'exe. Reglages : `mesures_config.json`.
 * Les modeles HTML sont cherches dans le dossier des mesures, puis a cote de l'exe. Ils ne sont **pas** dans ce depot.
 
+## Securites
+
+* Sans fichier `.F` dans le dossier, le traitement s'arrete (aucun rapport, aucune impression, rien n'est deplace).
+* Une fois les fichiers deplaces vers `res`, le rapport (HTML et PDF) est supprime pour ne pas laisser un ancien
+  rapport dans le dossier. Reglage « Supprimer le rapport... » ou option `--keep-report`. Si le deplacement est
+  desactive, le rapport est conserve. Un rapport deja present est de toute facon remplace au traitement suivant.
+
 ## Controle du vehicule (avant toute modification)
 
 Le numero (matricule) est le nom des fichiers `.F/.O/.G/.R/.S`. Avant de modifier ou d'imprimer quoi que ce soit :

@@ -26,6 +26,7 @@ class JobOptions:
     do_print: bool = True
     copies: int = 2
     move_files: bool = True
+    delete_report: bool = True      # supprimer le rapport (html + pdf) une fois les fichiers deplaces
     check_cg: bool = True           # verifier le numero du vehicule (fichier .cg + coherence des fichiers)
     cg_dir: str = r"C:\GIEGLAN\cg"
     conflict: str = "auto"          # fichier deja present dans res : auto | overwrite | rename
@@ -43,7 +44,7 @@ class JobOptions:
 
 # Cles sauvegardees dans le fichier de configuration (tout sauf folder / app_dir)
 CONFIG_KEYS = (
-    "vehicle", "mode", "dest", "make_pdf", "do_print", "copies", "move_files", "check_cg", "cg_dir", "conflict",
+    "vehicle", "mode", "dest", "make_pdf", "do_print", "copies", "move_files", "delete_report", "check_cg", "cg_dir", "conflict",
     "tpl_essence", "tpl_gazole", "tpl_bus", "tpl_camion",
     "bus_scale", "bus_shift", "camion_shift", "chrome", "sumatra",
 )

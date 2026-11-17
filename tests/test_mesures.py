@@ -110,10 +110,42 @@ class CarTests(unittest.TestCase):
             write(os.path.join(d, "tpl.html"), '<html><head></head><body><div id="pf2"></div></body></html>')
             measure_file(os.path.join(d, "5.F"), {"0427": "0"}, {"0468": "0"})
             opt = JobOptions(folder=d, dest=dest, make_pdf=False, do_print=False, tpl_essence="tpl.html", app_dir=d,
-                             check_cg=False)
+                             check_cg=False, delete_report=False)
+            self.assertTrue(run_job(opt, lambda m: None))
+            self.assertTrue(os.path.isfile(os.path.join(d, "rapport_a_imprimer.html")))   # conserve
+            self.assertTrue(os.path.isfile(os.path.join(dest, "5.F")))
+
+    def test_report_deleted_after_move_by_default(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as dest:
+            write(os.path.join(d, "tpl.html"), '<html><head></head><body><div id="pf2"></div></body></html>')
+            write(os.path.join(d, "rapport_a_imprimer.pdf"), "old pdf")
+            measure_file(os.path.join(d, "5.F"), {"0427": "0"}, {"0468": "0"})
+            opt = JobOptions(folder=d, dest=dest, make_pdf=False, do_print=False, tpl_essence="tpl.html",
+                             app_dir=d, check_cg=False)
+            self.assertTrue(run_job(opt, lambda m: None))
+            self.assertFalse(os.path.exists(os.path.join(d, "rapport_a_imprimer.html")))
+            self.assertFalse(os.path.exists(os.path.join(d, "rapport_a_imprimer.pdf")))
+            self.assertTrue(os.path.isfile(os.path.join(dest, "5.F")))
+
+    def test_report_kept_when_files_not_moved(self):
+        with tempfile.TemporaryDirectory() as d:
+            write(os.path.join(d, "tpl.html"), '<html><head></head><body><div id="pf2"></div></body></html>')
+            measure_file(os.path.join(d, "5.F"), {"0427": "0"}, {"0468": "0"})
+            opt = JobOptions(folder=d, move_files=False, make_pdf=False, do_print=False,
+                             tpl_essence="tpl.html", app_dir=d, check_cg=False)
             self.assertTrue(run_job(opt, lambda m: None))
             self.assertTrue(os.path.isfile(os.path.join(d, "rapport_a_imprimer.html")))
-            self.assertTrue(os.path.isfile(os.path.join(dest, "5.F")))
+
+    def test_car_without_measure_files_stops(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as dest:
+            write(os.path.join(d, "tpl.html"), '<html><head></head><body><div id="pf2"></div></body></html>')
+            msgs = []
+            for check in (False, True):
+                opt = JobOptions(folder=d, dest=dest, make_pdf=False, do_print=False, tpl_essence="tpl.html",
+                                 app_dir=d, check_cg=check, cg_dir=d)
+                self.assertFalse(run_job(opt, msgs.append))
+            self.assertFalse(os.path.exists(os.path.join(d, "rapport_a_imprimer.html")))
+            self.assertTrue(any("Aucun fichier de mesures .F" in m for m in msgs))
 
 
 BUS_KEYS = {"1106": "01012026101010", "1206": "01012026101010", "1135": "01012026101010",

@@ -58,6 +58,7 @@ def run_gui() -> int:
             self.v_pdf, self.v_print, self.v_move = B(value=bool(cfg["make_pdf"])), B(value=bool(cfg["do_print"])), \
                 B(value=bool(cfg["move_files"]))
             self.v_copies = I(value=int(cfg["copies"]))
+            self.v_delrep = B(value=bool(cfg["delete_report"]))
             self.v_check, self.v_cg = B(value=bool(cfg["check_cg"])), S(value=str(cfg["cg_dir"]))
             self.v_conflict = S(value=CONFLICT_LABELS.get(str(cfg["conflict"]), CONFLICT_LABELS["auto"]))
             self.v_tpl = {k: S(value=str(cfg[k])) for k in ("tpl_essence", "tpl_gazole", "tpl_bus", "tpl_camion")}
@@ -118,6 +119,9 @@ def run_gui() -> int:
             ttk.Checkbutton(f3, text="Deplacer les fichiers de mesures vers :", variable=self.v_move).grid(
                 row=1, column=0, columnspan=3, sticky="w", **pad)
             ttk.Entry(f3, textvariable=self.v_dest).grid(row=1, column=3, columnspan=2, sticky="ew", **pad)
+
+            ttk.Checkbutton(f3, text="Supprimer le rapport (HTML et PDF) une fois les fichiers deplaces",
+                            variable=self.v_delrep).grid(row=2, column=0, columnspan=5, sticky="w", **pad)
 
             f4 = ttk.Frame(root)
             f4.grid(row=3, column=0, sticky="ew", pady=(0, 6))
@@ -257,6 +261,7 @@ def run_gui() -> int:
                 "dest": self.v_dest.get().strip() or str(defaults()["dest"]),
                 "make_pdf": self.v_pdf.get(), "do_print": self.v_print.get(), "copies": copies,
                 "move_files": self.v_move.get(),
+                "delete_report": self.v_delrep.get(),
                 "check_cg": self.v_check.get(),
                 "cg_dir": self.v_cg.get().strip() or str(defaults()["cg_dir"]),
                 "conflict": self._key(CONFLICT_LABELS, self.v_conflict.get(), "auto"),
@@ -286,7 +291,8 @@ def run_gui() -> int:
             if os.path.isfile(p):
                 self.open_path(p)
             else:
-                messagebox.showinfo(APP_TITLE, "Aucun rapport genere dans ce dossier.")
+                messagebox.showinfo(APP_TITLE, "Aucun rapport dans ce dossier (supprime apres le deplacement, "
+                                    "ou pas encore genere).")
 
         def open_folder(self) -> None:
             self.open_path(self.v_folder.get().strip())
@@ -315,8 +321,9 @@ def run_gui() -> int:
                         return
             if self.v_warn.get() and not messagebox.askyesno(APP_TITLE, self.v_warn.get() + "\n\nContinuer quand meme ?"):
                 return
-            if not has_measure_files(folder) and not messagebox.askyesno(
-                    APP_TITLE, "Aucun fichier de mesures (.F .O .G .R .S) dans ce dossier.\nContinuer quand meme ?"):
+            if not has_measure_files(folder):
+                messagebox.showerror(APP_TITLE, "Aucun fichier de mesures (.F .O .G .R .S) dans ce dossier :\n%s\n\n"
+                                     "Choisissez le dossier qui contient les fichiers du vehicule." % folder)
                 return
             if self.v_move.get() and not messagebox.askyesno(
                     APP_TITLE, "Les fichiers de mesures seront deplaces vers :\n%s\n\nContinuer ?" % self.v_dest.get()):

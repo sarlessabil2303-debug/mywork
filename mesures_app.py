@@ -36,6 +36,8 @@ def run_auto(args: argparse.Namespace) -> int:
         opt.do_print = False
     if args.no_move:
         opt.move_files = False
+    if args.keep_report:
+        opt.delete_report = False
     if args.no_check:
         opt.check_cg = False
     journal = FileLog(os.path.join(app_dir(), "mesures_log.txt"))
@@ -62,6 +64,7 @@ def main(argv=None) -> int:
     p.add_argument("--no-print", action="store_true", help="ne pas imprimer")
     p.add_argument("--no-pdf", action="store_true", help="ne pas creer le PDF (ni imprimer)")
     p.add_argument("--no-move", action="store_true", help="ne pas deplacer les fichiers")
+    p.add_argument("--keep-report", action="store_true", help="ne pas supprimer le rapport apres le deplacement")
     p.add_argument("--no-check", action="store_true", help="ne pas verifier le numero du vehicule (.cg)")
     p.add_argument("--version", action="version", version="Mesures " + __version__)
     args = p.parse_args(argv)

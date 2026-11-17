@@ -87,6 +87,16 @@ def run_job(opt: JobOptions, log: Log) -> bool:
             conflict = plan.conflict_default if opt.conflict == "auto" else opt.conflict
             log("Deplacement des fichiers de mesures vers " + opt.dest)
             move_files(plan.move_paths(), opt.dest, conflict, log)
+            if opt.delete_report:
+                for name in (plan.report_name, plan.pdf_name):
+                    path = os.path.join(folder, name)
+                    if os.path.exists(path):
+                        try:
+                            os.remove(path)
+                            log("  rapport supprime : " + name)
+                        except OSError as exc:
+                            log("ATTENTION : %s non supprime (%s) ; il sera remplace au prochain traitement."
+                                % (name, exc))
 
         log("Termine - %s - %s" % (plan.label, stamp))
         return True
